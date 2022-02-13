@@ -3,6 +3,12 @@ import { Program } from '@project-serum/anchor';
 import { MintLayout, Token, } from '@solana/spl-token';
 import { WalletToken } from '../target/types/wallet_token';
 
+import { expect } from 'chai'
+
+import * as chai from 'chai';
+import chaiAsPromised from 'chai-as-promised';
+chai.use(chaiAsPromised);
+
 describe('wallet-token', () => {
 
   // Configure the client to use the local cluster.
@@ -79,6 +85,18 @@ describe('wallet-token', () => {
   });
 
   it('Init', async() => {
-    console.log("OK");
+    await program.methods
+      .initialize()
+      .accounts({authority: provider.wallet.publicKey})
+      .rpc();
+
+    // calc seed for anchor auto pda
+    // https://github.com/project-serum/anchor/blob/d5e7e2a7c32770c1bc50ff0957105318047a0f31/ts/src/program/accounts-resolver.ts#L115
+    const [walletkey, nonce] = await anchor.web3.PublicKey
+      .findProgramAddress([provider.wallet.publicKey.toBuffer()], program.programId)
+    
+    const wallet = await program.account.wallet.fetch(walletkey);
+    expect(wallet.authority).to.be.deep.equal(provider.wallet.publicKey);
+    
   });
 });
