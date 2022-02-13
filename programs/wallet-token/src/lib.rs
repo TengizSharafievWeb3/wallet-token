@@ -9,7 +9,6 @@ pub mod wallet_token {
     pub fn initialize(ctx: Context<Initialize>) -> ProgramResult {
         let wallet = &mut ctx.accounts.wallet;
         wallet.authority = ctx.accounts.authority.key();
-        wallet.bump = *ctx.bumps.get("wallet").unwrap();
         Ok(())
     }
 
@@ -17,7 +16,7 @@ pub mod wallet_token {
         Ok(())
     }
 
-    pub fn deposit1(ctx: Context<DepositDelegeted>, amount: u64) -> ProgramResult {
+    pub fn deposit1(ctx: Context<DepositDelegeted>, mint: Pubkey, amount: u64) -> ProgramResult {
         require!(ctx.accounts.from.delegate.contains(&ctx.accounts.wallet.key()), WalletTokenError::NotDelegated);
         require!(ctx.accounts.from.delegated_amount >= amount, WalletTokenError::NotEnoughBalance);
         let transfer_accounts = Transfer {
@@ -43,6 +42,19 @@ pub mod wallet_token {
         );
         anchor_spl::token::transfer(transfer_context, amount)
     }
+/*
+    pub fn approve() -> ProgramResult {
+
+    }
+
+    pub fn revoce() -> ProgramResult {
+
+    }
+
+    pub fn transfer() -> ProgramResult {
+
+    }
+    */
 }
 
 #[derive(Accounts)]
@@ -78,8 +90,28 @@ pub struct InitTokenAccount<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(amount: u64)]
+#[instruction(mint: Pubkey, amount: u64)]
 pub struct DepositDelegeted<'info> {
+    #[account(has_one = authority, seeds = [authority.key().as_ref()], bump)]
+    pub wallet: Account<'info, Wallet>,
+    #[account(
+        mut,
+        seeds = [wallet.key().as_ref(), mint.as_ref()],
+        constraint = token.owner == wallet.key() && token.mint == mint,
+        bump
+    )]
+    pub token: Account<'info, TokenAccount>,
+    #[account(
+        mut,
+        constraint = from.mint == mint
+    )]
+    pub from: Account<'info, TokenAccount>,
+    pub authority: Signer<'info>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct Approve<'info> {
     #[account(has_one = authority, seeds = [authority.key().as_ref()], bump)]
     pub wallet: Account<'info, Wallet>,
     #[account(
@@ -89,12 +121,8 @@ pub struct DepositDelegeted<'info> {
         bump
     )]
     pub token: Account<'info, TokenAccount>,
-    #[account(
-        mut,
-        constraint = from.mint == mint.key()
-    )]
-    pub from: Account<'info, TokenAccount>,
     pub mint: Account<'info, Mint>,
+    pub delegate: SystemAccount<'info>,
     pub authority: Signer<'info>,
     pub token_program: Program<'info, Token>,
 }
@@ -103,7 +131,6 @@ pub struct DepositDelegeted<'info> {
 #[derive(Default)]
 pub struct Wallet {
     pub authority: Pubkey,
-    pub bump: u8,
 }
 
 #[error]

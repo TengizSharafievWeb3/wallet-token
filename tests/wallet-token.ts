@@ -139,10 +139,9 @@ describe('wallet-token', () => {
       .rpc();
 
     await program.methods
-      .deposit1(new anchor.BN(50))
+      .deposit1(mint.publicKey, new anchor.BN(50))
       .accounts({
         from: token_account1.publicKey,
-        mint: mint.publicKey,
         authority: provider.wallet.publicKey,
       })
       .rpc();
