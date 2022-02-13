@@ -3,6 +3,7 @@
         "@project-serum/anchor": "^0.21.0"
     },
     "devDependencies": {
+        "@solana/spl-token": "^0.1.8",
         "@types/mocha": "^9.0.0",
         "chai": "^4.3.4",
         "chai-as-promised": "^7.1.1",
