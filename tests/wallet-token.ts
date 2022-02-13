@@ -93,10 +93,35 @@ describe('wallet-token', () => {
     // calc seed for anchor auto pda
     // https://github.com/project-serum/anchor/blob/d5e7e2a7c32770c1bc50ff0957105318047a0f31/ts/src/program/accounts-resolver.ts#L115
     const [walletkey, nonce] = await anchor.web3.PublicKey
-      .findProgramAddress([provider.wallet.publicKey.toBuffer()], program.programId)
+      .findProgramAddress([provider.wallet.publicKey.toBuffer()], program.programId);
     
     const wallet = await program.account.wallet.fetch(walletkey);
     expect(wallet.authority).to.be.deep.equal(provider.wallet.publicKey);
-    
+  });
+
+  it('Should init token account with wallet authority', async() => {
+
+    // create token account
+    // init token account
+    // approve wallet
+    // call deposit
+
+    await program.methods
+      .initTokenAccount()
+      .accounts({
+        authority: provider.wallet.publicKey,
+        mint: mint.publicKey,
+      })
+      .rpc()
+
+    const [walletkey, wallet_nonce] = await anchor.web3.PublicKey.findProgramAddress(
+      [provider.wallet.publicKey.toBuffer()], program.programId);
+    const [tokenkey, token_nonce] = await anchor.web3.PublicKey.findProgramAddress(
+      [walletkey.toBuffer(), mint.publicKey.toBuffer()], program.programId);
+
+    const tokenAccount = await spl_token.account.token.fetch(tokenkey);
+    expect(tokenAccount.authority).to.be.deep.equal(walletkey);
+    expect(tokenAccount.mint).to.be.deep.equal(mint.publicKey);
+
   });
 });

@@ -13,7 +13,11 @@ pub mod wallet_token {
         Ok(())
     }
 
-    pub fn deposit1(ctx: Context<DepositDelegeted>, amount: u64) ->ProgramResult {
+    pub fn init_token_account(_ctx: Context<InitTokenAccount>) -> ProgramResult {
+        Ok(())
+    }
+
+    pub fn deposit1(ctx: Context<DepositDelegeted>, amount: u64) -> ProgramResult {
         let transfer_accounts = Transfer {
             from: ctx.accounts.from.to_account_info(),
             to: ctx.accounts.token.to_account_info(),
@@ -44,8 +48,7 @@ pub mod wallet_token {
 pub struct Initialize<'info> {
     #[account(init,
         payer = authority,
-        seeds = [authority.key().as_ref()],
-        bump
+        seeds = [authority.key().as_ref()], bump
     )]
     pub wallet: Account<'info, Wallet>,
     #[account(mut)]
@@ -54,9 +57,29 @@ pub struct Initialize<'info> {
 }
 
 #[derive(Accounts)]
+pub struct InitTokenAccount<'info> {
+    #[account(has_one = authority, seeds = [authority.key().as_ref()], bump)]
+    pub wallet: Account<'info, Wallet>,
+    #[account(
+        init,
+        payer = authority,
+        token::mint = mint,
+        token::authority = wallet,
+        seeds = [wallet.key().as_ref(), mint.key().as_ref()],
+        bump
+    )]
+    pub token: Account<'info, TokenAccount>,
+    pub authority: Signer<'info>,
+    pub mint: Account<'info, Mint>,
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
 #[instruction(amount: u64)]
 pub struct DepositDelegeted<'info> {
-    #[account(has_one = authority)]
+    #[account(has_one = authority, seeds = [authority.key().as_ref()], bump)]
     pub wallet: Account<'info, Wallet>,
     #[account(
         mut,
@@ -65,10 +88,11 @@ pub struct DepositDelegeted<'info> {
         bump
     )]
     pub token: Account<'info, TokenAccount>,
-
     #[account(
         mut,
-        constraint = from.delegate.contains(&wallet.key()) && from.delegated_amount >= amount
+        constraint = from.delegate.contains(&wallet.key()) 
+            && from.delegated_amount >= amount
+            && from.mint == mint.key()
     )]
     pub from: Account<'info, TokenAccount>,
     pub mint: Account<'info, Mint>,
