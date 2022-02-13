@@ -42,11 +42,30 @@ pub mod wallet_token {
         );
         anchor_spl::token::transfer(transfer_context, amount)
     }
-/*
-    pub fn approve() -> ProgramResult {
+    
+    pub fn approve(ctx: Context<Approve>, mint: Pubkey, amount: u64) -> ProgramResult {
+        let approve_accounts = anchor_spl::token::Approve {
+            to: ctx.accounts.token.to_account_info(),
+            delegate: ctx.accounts.delegate.clone(),
+            authority: ctx.accounts.wallet.to_account_info(),
+        };
 
+        let bump = *ctx.bumps.get("wallet").unwrap();
+        let seeds = &[
+            ctx.accounts.wallet.authority.as_ref(),
+            &[bump],
+        ];
+        let signer = &[&seeds[..]];
+
+        let approve_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            approve_accounts,
+            signer,
+        );
+        anchor_spl::token::approve(approve_ctx, amount)
     }
 
+    /*
     pub fn revoce() -> ProgramResult {
 
     }
@@ -111,18 +130,18 @@ pub struct DepositDelegeted<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(mint: Pubkey, amount: u64)]
 pub struct Approve<'info> {
     #[account(has_one = authority, seeds = [authority.key().as_ref()], bump)]
     pub wallet: Account<'info, Wallet>,
     #[account(
         mut,
-        seeds = [wallet.key().as_ref(), mint.key().as_ref()],
-        constraint = token.owner == wallet.key() && token.mint == mint.key(),
+        seeds = [wallet.key().as_ref(), mint.as_ref()],
+        constraint = token.owner == wallet.key() && token.mint == mint,
         bump
     )]
     pub token: Account<'info, TokenAccount>,
-    pub mint: Account<'info, Mint>,
-    pub delegate: SystemAccount<'info>,
+    pub delegate: AccountInfo<'info>,
     pub authority: Signer<'info>,
     pub token_program: Program<'info, Token>,
 }
@@ -137,6 +156,6 @@ pub struct Wallet {
 pub enum WalletTokenError {
     #[msg("from token account doesn't have approve for wallet account")]
     NotDelegated,
-    #[msg("from token account balance isn't enough")]
+    #[msg("token account balance isn't enough")]
     NotEnoughBalance,
 }
