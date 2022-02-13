@@ -101,11 +101,6 @@ describe('wallet-token', () => {
 
   it('Should init token account with wallet authority', async() => {
 
-    // create token account
-    // init token account
-    // approve wallet
-    // call deposit
-
     await program.methods
       .initTokenAccount()
       .accounts({
@@ -122,6 +117,38 @@ describe('wallet-token', () => {
     const tokenAccount = await spl_token.account.token.fetch(tokenkey);
     expect(tokenAccount.authority).to.be.deep.equal(walletkey);
     expect(tokenAccount.mint).to.be.deep.equal(mint.publicKey);
+  });
 
+  it('Should deposit tokens to wallet', async () => {
+    const [walletkey, wallet_nonce] = await anchor.web3.PublicKey.findProgramAddress(
+      [provider.wallet.publicKey.toBuffer()], program.programId);
+    const [tokenkey, token_nonce] = await anchor.web3.PublicKey.findProgramAddress(
+      [walletkey.toBuffer(), mint.publicKey.toBuffer()], program.programId);
+
+    let tokenAccount = await spl_token.account.token.fetch(tokenkey);
+    
+    expect(tokenAccount.amount.toNumber()).to.be.equal(0);
+
+    await spl_token.methods
+      .approve(new anchor.BN(50))
+      .accounts({
+        source: token_account1.publicKey,
+        delegate: walletkey,
+        authority: provider.wallet.publicKey,
+      })
+      .rpc();
+
+    await program.methods
+      .deposit1(new anchor.BN(50))
+      .accounts({
+        from: token_account1.publicKey,
+        mint: mint.publicKey,
+        authority: provider.wallet.publicKey,
+      })
+      .rpc();
+    
+    tokenAccount = await spl_token.account.token.fetch(tokenkey);
+    expect(tokenAccount.amount.toNumber()).to.be.equal(50);
+    
   });
 });

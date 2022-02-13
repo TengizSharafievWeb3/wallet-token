@@ -18,19 +18,20 @@ pub mod wallet_token {
     }
 
     pub fn deposit1(ctx: Context<DepositDelegeted>, amount: u64) -> ProgramResult {
+        require!(ctx.accounts.from.delegate.contains(&ctx.accounts.wallet.key()), WalletTokenError::NotDelegated);
+        require!(ctx.accounts.from.delegated_amount >= amount, WalletTokenError::NotEnoughBalance);
         let transfer_accounts = Transfer {
             from: ctx.accounts.from.to_account_info(),
             to: ctx.accounts.token.to_account_info(),
             authority: ctx.accounts.wallet.to_account_info(),
         };
 
-        let wallet_key = ctx.accounts.wallet.key();
-        let mint_key = ctx.accounts.mint.key();
+
+        let bump = *ctx.bumps.get("wallet").unwrap();
 
         let seeds = &[
-            wallet_key.as_ref(),
-            mint_key.as_ref(),
-            &[ctx.accounts.wallet.bump],
+            ctx.accounts.wallet.authority.as_ref(),
+            &[bump],
         ];
 
         let signer = &[&seeds[..]];
@@ -90,9 +91,7 @@ pub struct DepositDelegeted<'info> {
     pub token: Account<'info, TokenAccount>,
     #[account(
         mut,
-        constraint = from.delegate.contains(&wallet.key()) 
-            && from.delegated_amount >= amount
-            && from.mint == mint.key()
+        constraint = from.mint == mint.key()
     )]
     pub from: Account<'info, TokenAccount>,
     pub mint: Account<'info, Mint>,
@@ -105,4 +104,12 @@ pub struct DepositDelegeted<'info> {
 pub struct Wallet {
     pub authority: Pubkey,
     pub bump: u8,
+}
+
+#[error]
+pub enum WalletTokenError {
+    #[msg("from token account doesn't have approve for wallet account")]
+    NotDelegated,
+    #[msg("from token account balance isn't enough")]
+    NotEnoughBalance,
 }
